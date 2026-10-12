@@ -1,6 +1,6 @@
 # `wta` (Git Worktree Add Helper)
 
-A Zsh shell function that streamlines creating and preparing Git worktrees for feature development and bug fixes.
+A shell function that streamlines creating and preparing Git worktrees for feature development and bug fixes. Ships in two native implementations — Zsh and Fish — with identical behaviour.
 
 ---
 
@@ -24,8 +24,9 @@ When working across multiple tasks or branches, Git worktrees allow you to have 
 ```text
 scripts/wta/
 ├── README.md       # Documentation & setup instructions (this file)
-├── wta.sh          # The core shell script & Zsh function source
-├── install.sh      # Automated installer for Zsh config & ~/.zshrc
+├── wta.sh          # Zsh function source
+├── wta.fish        # Fish function source (same behaviour as wta.sh)
+├── install.sh      # Automated installer for Zsh and/or Fish
 └── uninstall.sh    # Uninstaller script
 ```
 
@@ -34,7 +35,7 @@ scripts/wta/
 ## Prerequisites
 
 - **Git** (`git --version`)
-- **Zsh** (`zsh --version`) - standard default shell on macOS
+- **Zsh** (`zsh --version`) - standard default shell on macOS - *or* **Fish** (`fish --version`). You only need the shell you actually use; the installer detects which are present.
 - *(Optional)* **Node package manager** (`pnpm`, `yarn`, `npm`, or `bun`) - for automatic dependency installation
 
 ---
@@ -53,13 +54,36 @@ Run the included `install.sh` script:
 cd scripts/wta && ./install.sh
 ```
 
-#### What `install.sh` does:
+By default the installer **autodetects** which of Zsh and Fish are on your `PATH` and installs for each one it finds, skipping any that is missing. Use `--shell` to override that.
+
+#### What `install.sh` does for Zsh:
 1. Copies `wta` into your custom Zsh functions directory (`~/.config/zsh/functions/wta`).
 2. Configures your `~/.zshrc` (if not already configured):
    - Adds `fpath=(~/.config/zsh/functions $fpath)`
    - Adds `autoload -Uz wta`
 3. Backs up your `~/.zshrc` before making any modifications.
 4. Verifies that `wta` loads properly in Zsh.
+
+#### What `install.sh` does for Fish:
+1. Copies `wta.fish` into your Fish functions directory (`~/.config/fish/functions/wta.fish`).
+2. Verifies that `wta` loads properly in Fish.
+
+That is the whole Fish install. Fish autoloads any `<name>.fish` on its
+function path, so **no `config.fish` changes are made or needed** — and
+consequently there is nothing to clean up on uninstall either. Note the
+filename differs per shell: Zsh wants `wta`, Fish requires `wta.fish`.
+
+#### Installing for one shell only:
+
+```bash
+./scripts/wta/install.sh --shell fish    # Fish only
+./scripts/wta/install.sh --shell zsh     # Zsh only
+./scripts/wta/install.sh --shell both    # both, even if one is not installed yet
+```
+
+`--shell both` and the autodetect default are not quite the same: autodetect
+skips a shell that is missing, whereas `both` installs for both regardless,
+which is useful when provisioning a machine before the shell itself is there.
 
 #### Developer / Symlink Mode:
 If you want edits in this repository to immediately reflect in your shell without re-running the installer, use `--symlink` (or `-s`):
@@ -72,8 +96,10 @@ If you want edits in this repository to immediately reflect in your shell withou
 
 | Option | Description |
 | :--- | :--- |
+| `--shell <zsh\|fish\|both>` | Which shell(s) to install for (default: autodetect) |
 | `-s, --symlink` | Symlink `wta` instead of copying |
-| `-d, --dest <dir>` | Custom functions destination directory (default: `~/.config/zsh/functions`) |
+| `-d, --dest <dir>` | Zsh functions destination directory (default: `~/.config/zsh/functions`) |
+| `--fish-dest <dir>` | Fish functions destination directory (default: `~/.config/fish/functions`) |
 | `--zshrc <path>` | Custom path to `.zshrc` (default: `~/.zshrc`) |
 | `-n, --dry-run` | Preview changes without modifying files |
 | `-f, --force` | Overwrite existing files without prompt |
@@ -84,6 +110,8 @@ If you want edits in this repository to immediately reflect in your shell withou
 ### Method 2: Manual Installation
 
 If you prefer to configure your shell manually:
+
+#### Zsh
 
 1. **Create the custom functions directory:**
    ```bash
@@ -108,6 +136,24 @@ If you prefer to configure your shell manually:
 4. **Reload your shell:**
    ```bash
    source ~/.zshrc
+   ```
+
+#### Fish
+
+1. **Create the functions directory:**
+   ```bash
+   mkdir -p ~/.config/fish/functions
+   ```
+
+2. **Copy (or symlink) `wta.fish` into it, keeping the `.fish` name:**
+   ```bash
+   cp scripts/wta/wta.fish ~/.config/fish/functions/wta.fish
+   ```
+
+3. **That's it.** Fish autoloads the function by filename, so there is nothing
+   to add to `config.fish`. Open a new shell, or load it into the current one:
+   ```fish
+   source ~/.config/fish/functions/wta.fish
    ```
 
 ---
@@ -191,17 +237,37 @@ To remove `wta`:
 ./scripts/wta/uninstall.sh
 ```
 
+Like the installer, this autodetects your shells by default and accepts
+`--shell zsh|fish|both`.
+
 To also clean up the autoload line in `~/.zshrc`:
 
 ```bash
 ./scripts/wta/uninstall.sh --clean-zshrc
 ```
 
+Fish needs no equivalent flag — removing `~/.config/fish/functions/wta.fish`
+is the entire uninstall, because nothing was ever added to `config.fish`.
+
+#### Uninstaller Options:
+
+| Option | Description |
+| :--- | :--- |
+| `--shell <zsh\|fish\|both>` | Which shell(s) to uninstall from (default: autodetect) |
+| `-d, --dest <dir>` | Zsh functions directory (default: `~/.config/zsh/functions`) |
+| `--fish-dest <dir>` | Fish functions directory (default: `~/.config/fish/functions`) |
+| `--zshrc <path>` | Custom path to `.zshrc` (default: `~/.zshrc`) |
+| `--clean-zshrc` | Also remove the autoload line from `.zshrc` |
+| `-n, --dry-run` | Preview changes without modifying files |
+| `-h, --help` | Display help message |
+
 ---
 
 ## Troubleshooting
 
 ### `command not found: wta`
+
+**Zsh:**
 1. Make sure `~/.config/zsh/functions` is in your `fpath` before `autoload -Uz wta`:
    ```bash
    echo $fpath
@@ -209,6 +275,21 @@ To also clean up the autoload line in `~/.zshrc`:
 2. Reload your `.zshrc`:
    ```bash
    source ~/.zshrc
+   ```
+
+**Fish:**
+1. Check the file is there and named exactly `wta.fish` — Fish matches the
+   function name to the filename, so `wta` without the extension will not load:
+   ```fish
+   ls ~/.config/fish/functions/wta.fish
+   ```
+2. Confirm that directory is on the function path:
+   ```fish
+   echo $fish_function_path | tr ' ' '\n'
+   ```
+3. Ask Fish directly whether it can see the function:
+   ```fish
+   functions -q wta; echo $status   # 0 means found
    ```
 
 ### `Error: Not a git repository`
