@@ -170,11 +170,14 @@ function wta --description 'Create a git worktree with .env copying and dependen
         if test -n "$PKG_MANAGER"
             if command -q $PKG_MANAGER
                 echo "Installing dependencies with $PKG_MANAGER..."
-                # pushd/popd keeps the caller's directory unchanged, which is
-                # what the zsh version's subshell achieves.
-                pushd "$WORKTREE_PATH"
-                $PKG_MANAGER install
-                popd
+                # Run the install in a child shell rather than with pushd/popd.
+                # An interrupt during the install would skip the popd and leave
+                # the caller's $PWD and $dirstack moved; a child process cannot
+                # touch either, which is what the zsh version's subshell
+                # achieves. The path and command go through $argv so no
+                # quoting or escaping is involved.
+                # (env --chdir would also work, but is absent on macOS.)
+                command fish -c 'cd $argv[1]; $argv[2] install' "$WORKTREE_PATH" $PKG_MANAGER
             else
                 echo "Warning: Project detected as using '$PKG_MANAGER', but '$PKG_MANAGER' is not in PATH. Skipping dependency installation."
             end
